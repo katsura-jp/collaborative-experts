@@ -2,7 +2,7 @@
 data
 
 # log file
-log
+log/
 
 
 # local dev files
