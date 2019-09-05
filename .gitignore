@@ -1,6 +1,10 @@
 # symlinked data
 data
 
+# log file
+log
+
+
 # local dev files
 scratch/
 
