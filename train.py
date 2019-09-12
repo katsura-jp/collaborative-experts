@@ -29,6 +29,7 @@ def main(config):
         np.random.seed(seed)
         torch.manual_seed(seed)
 
+        # 全データのロード
         data_loaders = config.init(
             name='data_loader',
             module=module_data,
@@ -37,6 +38,7 @@ def main(config):
             text_dim=config["experts"]["text_dim"],
         )
 
+        # モデルの構築
         model = config.init(
             name='arch',
             module=module_arch,
@@ -46,9 +48,11 @@ def main(config):
         )
         logger.info(model)
 
+
         loss = config.init(name="loss", module=module_loss)
         metrics = [getattr(module_metric, met) for met in config['metrics']]
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+
 
         optimizer = config.init('optimizer', torch.optim, trainable_params)
         lr_scheduler = config.init('lr_scheduler', torch.optim.lr_scheduler, optimizer)
@@ -73,6 +77,8 @@ def main(config):
             skip_first_n_saves=config["trainer"].get("skip_first_n_saves", 0),
             include_optim_in_ckpts=config["trainer"].get("include_optim_in_ckpts", False),
         )
+        
+        # 学習
         trainer.train()
         best_ckpt_path = config.save_dir / "trained_model.pth"
         duration = time.strftime('%Hh%Mm%Ss', time.gmtime(time.time() - tic))

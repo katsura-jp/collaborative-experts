@@ -75,6 +75,7 @@ class BaseDataset(Dataset):
         self.MISSING_VAL = np.nan
 
         # load the dataset-specific features into memory
+        # データのロード
         self.load_features()
 
         # Generate canonical forms of features - note that we handle ocr separately
@@ -206,10 +207,15 @@ class BaseDataset(Dataset):
         ind = {expert: np.zeros(batch_size) for expert in self.experts}
 
         # as above, we handle rgb separately from other fixed_sz experts
+        # NOTE: expert featureのサイズを固定長にmalloc
+        # fixes size expert : "face", "flow", "scene", "rgb"
         tensors = {expert: np.zeros((batch_size, self.raw_input_dims[expert]))
                    for expert in self.fixed_sz_experts if expert != "rgb"}
         tensors["rgb"] = np.zeros((batch_size, self.rgb_shots,
                                    self.raw_input_dims["rgb"]))
+
+        # variable size expert: "audio", "speech", "ocr"
+        # 最大サイズに合わせる
         tensors.update({expert: np.zeros(
             (batch_size, self.max_expert_tokens, self.raw_input_dims[expert])
         ) for expert in self.variable_sz_experts})
@@ -302,6 +308,7 @@ class BaseDataset(Dataset):
                         not in self.flaky_experts})
 
             # logic for checking faces
+            # NOTE: faceはbboxに対して全体の平均を特徴とする
             if "face" in self.ordered_experts:
                 if np.array_equal(np.unique(features["face"]), np.array([0])):
                     face_ind = 0
@@ -322,6 +329,7 @@ class BaseDataset(Dataset):
             for expert in unaggregated:
                 assert features[expert].ndim == 2
                 assert features[expert].shape[1] == self.raw_input_dims[expert], msg
+                # NOTE: featureを結合する（avg）
                 features[expert] = self.aggregate_feats(
                     video_name=vid,
                     feats=features[expert],

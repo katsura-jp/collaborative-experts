@@ -81,11 +81,28 @@ class Trainer(BaseTrainer):
         self.model.train()
         total_loss = 0
         for batch_idx, minibatch in enumerate(self.data_loaders["train"]):
+            # minibatch: dict('text', 'experts', 'ind')
+            # text: text embedding. size is (batch, 1, 30, 768). if word is nothing, fill 0.
+            #       (batch, 1, 30, 768) = (B, captions_per_video, max_words, text_feat_dim)
+            # ind: dict('face', 'ocr', 'audio', 'rgb', 'speech', 'scene', 'flow')
+            #      if there is the expert, fill 1. if not, 0. size is batchsize
+            # experts: dict('audio', 'face', 'flow', 'ocr', 'rgb', 'scene', 'speech')
+            # - audio : (batch, 30, 128)
+            # - face  : (batch, 512)
+            # - flow  : (batch, 1024)
+            # - ocr   : (batch, 300)
+            # - rgb   : (batch, 1, 2048)
+            # - scene : (batch, 2208)
+            # - speech: (batch, 30, 300)
+
             for key, val in minibatch["experts"].items():
                 minibatch["experts"][key] = val.to(self.device)
             minibatch["text"] = minibatch["text"].to(self.device)
 
             self.optimizer.zero_grad()
+
+            # output: dict('modalities', 'cross_view_conf_matrix')
+        
             output = self.model(**minibatch)
             loss = self.loss(output["cross_view_conf_matrix"])
             loss.backward()

@@ -145,8 +145,9 @@ class CENet(BaseModel):
         # -> B x captions_per_video (cluster_dim * text_feat_dim)
         B, captions_per_video, max_words, text_feat_dim = text.size()
         text = text.view(B * captions_per_video, max_words, text_feat_dim)
-        text = self.text_pooling(text)
-        text = text.view(B, captions_per_video, -1)
+        # text_pooling is NetVLAD
+        text = self.text_pooling(text) # (bs, 1, 30, 768) -> (bs, 24576)
+        text = text.view(B, captions_per_video, -1) # (bs, 24576) -> (bs, 1, 24576)
         return self.ce(text, aggregated_experts, ind, raw_captions)
 
 
@@ -241,6 +242,7 @@ class CEModule(nn.Module):
         self.text_GU = nn.ModuleList(gated_text_embds)
 
     def compute_moe_weights(self, text, ind):
+        # TODO: 処理確認
         # compute weights for all captions (including when assigned K captions to
         # the same video)
         B, K, D = text.shape
@@ -319,6 +321,10 @@ class CEModule(nn.Module):
         B, captions_per_video, feat_dim = text.size()
         text = text.view(B * captions_per_video, feat_dim)
 
+        # self.modalities : 'audio', 'face', 'flow', 'ocr', 'rgb', 'scene', 'speech'
+        # self.text_GU : GatedEmbeddingUnit(Linear->Linear->batch_norm) for text
+        # （モダリティごとに独立したモジュールを使用)
+
         for modality, layer in zip(self.modalities, self.text_GU):
             # NOTE: Due to the batch norm, the gated units are sensitive to passing
             # in a lot of zeroes, so we do the masking step after the forwards pass
@@ -328,6 +334,9 @@ class CEModule(nn.Module):
             if "text" in self.random_feats:
                 text_ = th.rand_like(text_)
             text_embd[modality] = text_
+        
+        # text_embd : dict of text embedding (dim=512)
+        # text : batch size, n_caption, feat_dim
         text = text.view(B, captions_per_video, -1)
 
         # speech/ocr/audio nans are handled earlier (during pooling)
@@ -339,6 +348,7 @@ class CEModule(nn.Module):
 
         # MOE weights computation + normalization - note that we use the first caption
         # sample to predict the weights
+        # moe_weights : (bs, n_caption, n_modarity)
         moe_weights = self.compute_moe_weights(text, ind=ind)
 
         if hasattr(self, "video_dim_reduce"):
@@ -347,21 +357,23 @@ class CEModule(nn.Module):
                 experts[modality] = layer(experts[modality])
 
         if self.use_ce:
-            all_combinations = list(itertools.permutations(experts, 2))
+            # モダリティの全組み合わせ(n_modarity*(n_modarity - 1))
+            all_combinations = list(itertools.permutations(experts, 2)) # list(tuple(str, str))
             assert len(self.modalities) > 1, "use_ce requires multiple modalities"
 
+            # video_GU : ContextGatingReasoning　（モダリティごとに独立したモジュールを使用)
             for ii, l in enumerate(self.video_GU):
 
                 mask_num = 0
                 curr_mask = 0
                 temp_dict = {}
                 avai_dict = {}
-                curr_modality = self.modalities[ii]
+                curr_modality = self.modalities[ii] # e.g. 'audio'
 
                 for modality_pair in all_combinations:
                     mod0, mod1 = modality_pair
                     if mod0 == curr_modality:
-                        new_key = "_".join(modality_pair)
+                        new_key = "_".join(modality_pair) # e.g. 'audio_face'
                         fused = th.cat((experts[mod0], experts[mod1]), 1)  # -> B x 2D
                         temp = self.g_reason_1(fused)  # B x 2D -> B x D
                         # temp=self.batch_norm_g(temp)
@@ -383,6 +395,7 @@ class CEModule(nn.Module):
                 # curr_mask = self.f_reason_3 (F.relu(curr_mask))
                 # curr_mask= F.relu （curr_mask）
                 experts[curr_modality] = l(experts[curr_modality], curr_mask)
+        
         elif self.concat_mix_experts:
             concatenated = th.cat(tuple(experts.values()), dim=1)
             vid_embd_ = self.video_GU[0](concatenated)
@@ -414,6 +427,8 @@ class CEModule(nn.Module):
                 raw_captions=raw_captions,
                 merge_caption_similiarities=merge_caption_similiarities,
             )
+
+            
         return {
             "modalities": self.modalities,
             "cross_view_conf_matrix": cross_view_conf_matrix,
@@ -494,7 +509,8 @@ class ContextGatingReasoning(nn.Module):
         self.batch_norm2 = nn.BatchNorm1d(dimension)
 
     def forward(self, x, x1):
-
+        # x1 is attention
+        # TODO: why not using contents-wise sigmoid? 
         x2 = self.fc(x)
 
         # t = x1 + x2
@@ -513,7 +529,7 @@ class ContextGatingReasoning(nn.Module):
         # return x*F.sigmoid(t)
 
         # return t  (curr no sigmoid hoho!)
-        x = th.cat((x, t), 1)
+        x = th.cat((x, t), 1) # 512 + 512 => 1024
         return F.glu(x, 1)
 
 
@@ -569,10 +585,12 @@ def sharded_cross_view_inner_product(vid_embds, text_embds, text_weights,
     for idx, modality in enumerate(subspaces):
         vid_embd_ = vid_embds[modality].reshape(B, -1) / l2_mass_vid
         text_embd_ = text_embds[modality].view(B * num_caps, -1)
+        # TODO: text_weightsの決定方法を確認
         text_embd_ = text_weights[:, idx: idx + 1] * text_embd_
         msg = "expected weights to be applied to text embeddings"
         assert text_embd_.shape[0] == text_weights.shape[0], msg
         text_embd_ = text_embd_ / l2_mass_text
+        # モダリティごとのsimilarity（内積）を合計する
         sims += th.matmul(text_embd_, vid_embd_.t())  # (B x num_caps) x (B)
 
     if l2renorm:
@@ -588,6 +606,7 @@ def sharded_cross_view_inner_product(vid_embds, text_embds, text_weights,
     if num_caps > 1:
         # aggregate similarities from different captions
         if merge_caption_similiarities == "avg":
+            # キャプションが2つ以上ならsimilarityの平均を取る
             sims = sims.view(B, num_caps, B)
             # vis = False
             # if vis:

@@ -86,19 +86,32 @@ class MSRVTT(BaseDataset):
         # drop features which have not been requested
         feat_paths = {key: val for key, val in feat_paths.items()
                       if key in self.ordered_experts}
+        
+        # -- ロードポイント 1 --
+        # dict('audio', 'face', 'flow', 'rgb', 'scene', 'speech', 'ocr')
         features = {expert: memcache(path) for expert, path in feat_paths.items()}
 
         # we handle ocr separately from the other experts, for backwards compatibility
         canon_feats = {}
         for expert, feats in features.items():
             if expert != "ocr":
+                # TODO: 確認　???
+                # featureの変換
                 canon_feats[expert] = self.canonical_features(feats)
             else:
                 raw_dim = self.raw_input_dims[expert]
                 canon_feats[expert] = self.canonical_features(feats, raw_dim=raw_dim)
+        
+        # dict('audio', 'face', 'flow', 'rgb', 'scene', 'speech', 'ocr')
         self.features = canon_feats
+
+        # raw_captionのロード
         self.raw_captions = memcache(Path(root_feat) / "raw-captions.pkl")
+
+        # text_featuresのロード
+        # ここでメモリ大量消費
         self.text_features = memcache(text_feat_path)
+
         if self.restrict_train_captions:
             # hash the video names to avoid O(n) lookups in long lists
             train_list = set(self.train_list)
