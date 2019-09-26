@@ -34,7 +34,7 @@
         "type": "ExpertDataLoader",
         "args":{
             "dataset_name": "BDDX",
-            "data_dir": "data/MSRVTT", 
+            "data_dir": "data/BDDX", 
             "batch_size": 64,
             "split_name": "full-val",
             "num_workers": 4,
@@ -75,7 +75,7 @@
     "visualizer": {
         "type": "Visualizer",
         "args":{
-            "src_video_dir": "data/MSRVTT/videos/all",
+            "src_video_dir": "data/BDDX/videos/all",
             "vis_vid_freq": 50,
             "num_samples": 100
         }

@@ -6,6 +6,7 @@ from data_loader.MSRVTT_dataset import MSRVTT
 from data_loader.MSVD_dataset import MSVD
 from data_loader.LSMDC_dataset import LSMDC
 from data_loader.ActivityNet_dataset import ActivityNet
+from data_loader.BDDX_dataset import BDDX
 from data_loader.DiDeMo_dataset import DiDeMo
 from utils.util import HashableDict, HashableOrderedDict
 
@@ -22,6 +23,7 @@ def dataset_loader(dataset_name, data_dir, raw_input_dims, num_test_captions, te
         "MSRVTT": MSRVTT,
         "DiDeMo": DiDeMo,
         "ActivityNet": ActivityNet,
+        "BDDX": BDDX
     }
     dataset = dataset_classes[dataset_name](
         data_dir=data_dir,

@@ -1,3 +1,4 @@
+import os
 import time
 from pathlib import Path
 from os.path import join as pjoin
@@ -34,7 +35,7 @@ class BDDX(BaseDataset):
             else:
                 test_list_path = "test_list_full.txt"
         else:
-            msg = "unrecognised MSRVTT split: {}"
+            msg = "unrecognised BDDX split: {}"
             raise ValueError(msg.format(split_name))
 
         train_list_path = pjoin(self.root_feat, train_list_path)
@@ -67,27 +68,27 @@ class BDDX(BaseDataset):
             feat_paths["face"] = pjoin(root_feat, "face_features.pickle")
             feat_paths["flow"] = pjoin(root_feat, "flow_features.pickle")
         elif self.split_name in {"full-test", "full-val", "jsfusion"}:
-            feat_paths["audio"] = pjoin(root_feat, "Audio_MSRVTT_new.pickle")
-            feat_paths["face"] = pjoin(root_feat, "Face_MSRVTT_new.pickle")
-            feat_paths["flow"] = pjoin(root_feat, "I3D_MSRVTT_new.pickle")
+            feat_paths["audio"] = pjoin(root_feat, "Audio_BDDX_new.pickle")
+            feat_paths["face"] = pjoin(root_feat, "Face_BDDX_new.pickle")
+            feat_paths["flow"] = pjoin(root_feat, "I3D_BDDX_new.pickle")
             rgb_feat_name = f"{self.rgb_model_name}-imagenet-raw-nocrop.pickle"
 
         feat_paths["rgb"] = pjoin(root_feat, rgb_feat_name)
-        feat_paths["scene"] = pjoin(root_feat, "scene-raw.npy")
+        feat_paths["scene"] = pjoin(root_feat, "scene-raw.pickle")
 
         # Note: Antoine's text features cover the full 10,000 videos, so can be
         # used for either split, similarly for the speech embeddings
         text_feat = self.text_feat
         if text_feat == "w2v":
-            text_feat_path = pjoin(root_feat, "w2v_MSRVTT.pickle")
+            text_feat_path = pjoin(root_feat, "w2v_BDDX.pickle")
         elif text_feat == "openai":
-            text_feat_path = pjoin(root_feat, "w2v_MSRVTT_openAIGPT.pickle")
+            text_feat_path = pjoin(root_feat, "w2v_BDDX_openAIGPT.pickle")
         elif text_feat == "bertxl":
-            text_feat_path = pjoin(root_feat, "w2v_MSRVTT_transformer.pickle")
+            text_feat_path = pjoin(root_feat, "w2v_BDDX_transformer.pickle")
         else:
             raise ValueError("Text features {} not recognised ".format(text_feat))
         feat_paths["speech"] = pjoin(root_feat, "stt_w2v.pickle")
-        feat_paths["ocr"] = pjoin(root_feat, "MSR_VTT_all_text_w2v.pkl")
+        feat_paths["o1cr"] = pjoin(root_feat, "MSR_VTT_all_text_w2v.pkl")
         # drop features which have not been requested
         feat_paths = {key: val for key, val in feat_paths.items()
                       if key in self.ordered_experts}
@@ -140,5 +141,5 @@ class BDDX(BaseDataset):
                 missing = 0
             else:
                 raise ValueError("unrecognised test set")
-            msg = "Expected to find two missing queries in MSRVTT for full eval"
+            msg = "Expected to find two missing queries in BDDX for full eval"
             assert self.query_masks.sum() == self.query_masks.size - missing, msg
