@@ -12,3 +12,6 @@ scratch/
 *.DS_Store
 .nfs*
 __pycache__
+
+# temporary file
+tmp/

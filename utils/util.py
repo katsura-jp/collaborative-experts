@@ -23,6 +23,18 @@ def memcache(path):
         raise ValueError(f"unknown suffix: {suffix}")
     return res
 
+@functools.lru_cache(maxsize=64, typed=False)
+def bdd_memcache(root, names):
+    features = dict()
+    for name in names:
+        path = os.path.join(root, name)
+        if os.path.exists(path):
+            feature = pickle_loader(path)
+            features[name] = feature
+        else:
+            raise ValueError(f"unknown suffix: {path}")
+    return features
+
 
 def ensure_dir(dirname):
     dirname = Path(dirname)

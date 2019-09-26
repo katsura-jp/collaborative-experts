@@ -48,6 +48,7 @@ class BaseDataset(Dataset):
         self.num_test_captions = num_test_captions
         self.rgb_model_name = rgb_model_name
         self.feat_aggregation = feat_aggregation
+        # TODO: BDDの場合、ここを変える必要あり
         self.root_feat = Path(data_dir) / "symlinked-feats"
         self.experts = set(raw_input_dims.keys())
         self.rgb_shots = 1
@@ -63,6 +64,7 @@ class BaseDataset(Dataset):
         # TODO(Samuel) - is a global fixed ordering still necessary?
         self.ordered_experts = list(raw_input_dims.keys())
 
+        # NOTE: ここでtrainとtestのスプリット
         self.configure_train_test_splits(split_name=split_name)
         self.num_train = len(self.train_list)
         self.raw_input_dims = raw_input_dims
