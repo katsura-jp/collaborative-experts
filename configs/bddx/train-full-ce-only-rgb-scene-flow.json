@@ -39,7 +39,7 @@
             "split_name": "full-val",
             "num_workers": 4,
             "fuse_captions": false,
-            "num_test_captions": 20,
+            "num_test_captions": 1,
             "max_text_words": 30,
             "max_expert_tokens": 30,
             "rgb_model_name": "senet154",
