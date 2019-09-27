@@ -108,6 +108,7 @@ class Trainer(BaseTrainer):
             loss.backward()
             self.optimizer.step()
 
+            # NOTE: TensorBoardのlogにloss追加
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.writer.add_scalar('loss', loss.item())
             total_loss += loss.item()
@@ -129,6 +130,7 @@ class Trainer(BaseTrainer):
         return log
 
     def log_metrics(self, metric_store, epoch, metric_name):
+        # TensorBoardのlogにmetric追加
         for key, value in metric_store.items():
             self.writer.add_scalar(f"{metric_name}/{key}", value, epoch)
 
@@ -161,6 +163,10 @@ class Trainer(BaseTrainer):
                 verbose(epoch=epoch, metrics=res, name=dataset, mode=metric_name)
                 self.log_metrics(metric_store=res, epoch=epoch, metric_name=metric_name)
                 nested_metrics[metric_name] = res
+            #TODO: learning rateをtensorboardに
+            for param_group in self.optimizer.param_groups:
+                self.writer.add_scalar(f"lr", param_group[‘lr’], epoch)
+                break
 
         for name, param in self.model.named_parameters():
             self.writer.add_histogram(name, param, bins='auto')

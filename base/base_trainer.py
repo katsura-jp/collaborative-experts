@@ -83,6 +83,7 @@ class BaseTrainer:
                     log[key] = value
 
             # print logged informations to the screen
+            # NOTE: ここで結果を表示
             for key, value in log.items():
                 self.logger.info('    {:15s}: {}'.format(str(key), value))
 
@@ -104,6 +105,7 @@ class BaseTrainer:
                     not_improved_count = 0
 
                 if improved:
+                    print('Update : {} ---> {}'.format(self.mnt_best, log[self.mnt_metric]))
                     self.mnt_best = log[self.mnt_metric]
                     not_improved_count = 0
                     best = True
@@ -128,9 +130,28 @@ class BaseTrainer:
                 continue
 
             if epoch % self.save_period == 0 or save_best:
-                self._save_checkpoint(epoch, save_best=best)
+                # metricsを全て保存したい(logに含まれている)
+                # self._save_checkpoint(epoch, save_best=best)
+                self._save_checkpoint(epoch, save_best=False) # この後にベストを保存
             if epoch > self.num_keep_ckpts:
                 self.purge_stale_checkpoints()
+
+            if best:
+                arch = type(self.model).__name__
+                state = {
+                    'arch': arch,
+                    'epoch': epoch,
+                    'state_dict': self.model.state_dict(),
+                    'monitor_best': self.mnt_best,
+                    'config': self.config,
+                    'log': log
+                }
+                
+                self.logger.info("Updating 'best' checkpoint: {} ...".format(filename))
+                best_path = str(self.checkpoint_dir / 'trained_model.pth')
+                torch.save(state, best_path)
+                self.logger.info(f"Done in {time.time() - tic:.3f}s") 
+
 
     def purge_stale_checkpoints(self):
         """Remove checkpoints that are no longer neededself.

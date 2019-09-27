@@ -76,6 +76,7 @@ def main(config):
             visualizer=visualizer,
             skip_first_n_saves=config["trainer"].get("skip_first_n_saves", 0),
             include_optim_in_ckpts=config["trainer"].get("include_optim_in_ckpts", False),
+            num_keep_ckpts=30,
         )
         
         # 学習
