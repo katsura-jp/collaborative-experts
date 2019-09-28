@@ -124,6 +124,24 @@ class BaseTrainer:
             # Due to the fast runtime/slow HDD combination, checkpointing can dominate
             # the total training time, so we optionally skip checkpoints for some of
             # the first epochs
+
+            if best:
+                tic = time.time()
+                arch = type(self.model).__name__
+                state = {
+                    'arch': arch,
+                    'epoch': epoch,
+                    'state_dict': self.model.state_dict(),
+                    'monitor_best': self.mnt_best,
+                    'config': self.config,
+                    'log': log
+                }
+                best_path = str(self.checkpoint_dir / 'trained_model.pth')
+                self.logger.info("Updating 'best' checkpoint: {} ...".format(best_path))
+                torch.save(state, best_path)
+                self.logger.info(f"Done in {time.time() - tic:.3f}s") 
+
+
             if epoch < self.skip_first_n_saves:
                 msg = f"Skipping ckpt save at epoch {epoch} <= {self.skip_first_n_saves}"
                 self.logger.info(msg)
@@ -136,21 +154,7 @@ class BaseTrainer:
             if epoch > self.num_keep_ckpts:
                 self.purge_stale_checkpoints()
 
-            if best:
-                arch = type(self.model).__name__
-                state = {
-                    'arch': arch,
-                    'epoch': epoch,
-                    'state_dict': self.model.state_dict(),
-                    'monitor_best': self.mnt_best,
-                    'config': self.config,
-                    'log': log
-                }
-                
-                self.logger.info("Updating 'best' checkpoint: {} ...".format(filename))
-                best_path = str(self.checkpoint_dir / 'trained_model.pth')
-                torch.save(state, best_path)
-                self.logger.info(f"Done in {time.time() - tic:.3f}s") 
+            
 
 
     def purge_stale_checkpoints(self):

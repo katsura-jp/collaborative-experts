@@ -4,6 +4,8 @@ import time
 import os
 import numpy as np
 import random
+import gc
+
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
 import model.metric as module_metric
@@ -89,6 +91,10 @@ def main(config):
         # json should specify an `eval_config` entry with the path to the test
         # configuration
         if config._config.get("eval_config", False):
+            # TODO: 不要なオブジェクトを削除(logger以外)
+            del data_loaders, model, trainer
+            gc.collect()
+            
             eval_args = argparse.ArgumentParser()
             eval_args.add_argument("--config", default=config["eval_config"])
             eval_args.add_argument("--device", default=config._args.device)
